@@ -25,6 +25,8 @@ ui <- fluidPage(
             
             selectInput("team", "Team:", df$TEAM),
             
+            uiOutput("athleteSelection"),
+            
             sliderInput("bins",
                         "Number of bins:",
                         min = 1,
@@ -46,6 +48,10 @@ server <- function(input, output) {
 
     # Rows for the team chosen
     selectedTeam <- reactive(which(df$TEAM == input$team))
+    
+    output$athleteSelection <- renderUI({
+        selectInput("athlete", "Athlete:", choices = unique(df$NAME[selectedTeam()]))
+    })
     
     output$distPlot <- renderPlot({
         # generate bins based on input$bins from ui.R
