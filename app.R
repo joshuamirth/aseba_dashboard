@@ -56,13 +56,15 @@ buildStatsTable <- function(athlete, team, cols, cats, tScoreAverage, statType="
     return(tableFrame)
 }
 
+# Radar chart commands. Separate function so they can all by styled.
+# TODO: add better formatting.
 buildRadarChart <- function(tableFrame){
     radarData <- data.frame(rbind(
         rep(100, nrow(tableFrame)),
         rep(0, nrow(tableFrame)),
-        t(tableFrame[,-1])
+        t(tableFrame[,-1])   # first column is labels
     ))   
-    radarchart(radarData)
+    radarchart(radarData, vlabels=tableFrame[,1])
 }
 
 ##############################################################################
@@ -80,6 +82,8 @@ ui <- fluidPage(
             selectInput("team", "Team:", df$TEAM),
             
             uiOutput("athleteSelection"),
+            
+            uiOutput("dateSelection"),
             
             radioButtons("statType", "Display Style:", c("T Score" = "T_Score", "Percentile" = "Percentile"))
            
@@ -106,11 +110,13 @@ server <- function(input, output) {
     # Rows for the team and athlete chosen.
     selectedTeamIdx <- reactive(which(df$TEAM == input$team))
     # TODO: currently selecting last index at which an athlete occurs. There are
-    # athletes with multiple occurrences. Decide how to handle that. The best
-    # option might be a third drop-down menu to select date of assessment to
-    # view. Another option might be to always show most recent (which is
-    # probably, but not necessarily, the last index as it is currently.)
-    selectedAthleteIdx <- reactive(which.max(df$NAME == input$athlete))
+    # athletes with multiple occurrences. Want to handle this with a third
+    # drop-down (implemented). Still need to correctly update to that row.
+    # Currently defaulting to showing last occurrence of athlete in data (by
+    # index, not necessarily by date).
+    selectedAthleteAllIdx <- reactive(which(df$NAME == input$athlete))
+    selectedDateIdx <- reactive(which(df$DateOnForm == input$date)) # This gets all instances of data, not just those associated with athlete!
+    selectedAthleteIdx <- reactive(max(selectedAthleteAllIdx()))
     selectedTeam <- reactive(df[selectedTeamIdx(),])
     selectedAthlete <- reactive(df[selectedAthleteIdx(),])
    
@@ -118,6 +124,11 @@ server <- function(input, output) {
     output$athleteSelection <- renderUI({
         selectInput("athlete", "Athlete:",
                     choices = unique(df$NAME[selectedTeamIdx()]))
+    })
+    
+    output$dateSelection <- renderUI({
+        selectInput("date", "Assessment Date:",
+                    choices = df$DateOnForm[selectedAthleteAllIdx()])
     })
     
     # dataframes for selected athlete.
@@ -144,6 +155,9 @@ server <- function(input, output) {
     output$syndromeTable <- renderTable(syndrome())
     
     # Radar plot of comparison data
+    
+    # TODO: figure out how to handle the errors that occur when no data is yet
+    # selected (it doesn't cause issues, so at least suppress the output.)
     output$adaptiveFunctioningPlot <- renderPlot({
         buildRadarChart(adaptiveFunctioning())
     })
