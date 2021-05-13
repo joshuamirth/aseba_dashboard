@@ -1,13 +1,5 @@
-#
-# This is a Shiny web application. You can run the application by clicking
-# the 'Run App' button above.
-#
-# Find out more about building applications with Shiny here:
-#
-#    http://shiny.rstudio.com/
-#
-
 library(shiny)
+library(fmsb) # for radar charts
 
 ##############################################################################
 # Data pre-processing.
@@ -64,6 +56,15 @@ buildStatsTable <- function(athlete, team, cols, cats, tScoreAverage, statType="
     return(tableFrame)
 }
 
+buildRadarChart <- function(tableFrame){
+    radarData <- data.frame(rbind(
+        rep(100, nrow(tableFrame)),
+        rep(0, nrow(tableFrame)),
+        t(tableFrame[,-1])
+    ))   
+    radarchart(radarData)
+}
+
 ##############################################################################
 # UI
 ##############################################################################
@@ -89,6 +90,9 @@ ui <- fluidPage(
            tableOutput("adaptiveFunctioningTable"),
            tableOutput("syndromeTable"),
            tableOutput("dsmOrientedTable"),
+           plotOutput("adaptiveFunctioningPlot"),
+           plotOutput("syndromePlot"),
+           plotOutput("dsmOrientedPlot"),
         )
         
     )
@@ -99,7 +103,7 @@ ui <- fluidPage(
 ##############################################################################
 server <- function(input, output) {
 
-    # Rows for the team chosen
+    # Rows for the team and athlete chosen.
     selectedTeamIdx <- reactive(which(df$TEAM == input$team))
     # TODO: currently selecting last index at which an athlete occurs. There are
     # athletes with multiple occurrences. Decide how to handle that. The best
@@ -110,24 +114,45 @@ server <- function(input, output) {
     selectedTeam <- reactive(df[selectedTeamIdx(),])
     selectedAthlete <- reactive(df[selectedAthleteIdx(),])
    
+    # List of athletes associated to selected team.
     output$athleteSelection <- renderUI({
         selectInput("athlete", "Athlete:",
                     choices = unique(df$NAME[selectedTeamIdx()]))
     })
     
+    # dataframes for selected athlete.
+    adaptiveFunctioning <- reactive(buildStatsTable(selectedAthlete(),
+                                                    selectedTeam(),
+                                                    afCols, afCats,
+                                                    afT_ScoreAverage,
+                                                    statType = input$statType))
+    dsmOriented <- reactive(buildStatsTable(selectedAthlete(),
+                                   selectedTeam(),
+                                   dsmCols,
+                                   dsmCats,
+                                   dsmT_ScoreAverage,
+                                   statType = input$statType))
+    syndrome <- reactive(buildStatsTable(selectedAthlete(),
+                                         selectedTeam(),
+                                         ssCols, ssCats,
+                                         ssT_ScoreAverage,
+                                         statType = input$statType))
+    
     # Tables of T-scores/Percentiles compared with all athletes and teammates.
-    output$adaptiveFunctioningTable <- renderTable(
-        buildStatsTable(selectedAthlete(), selectedTeam(), afCols, afCats,
-                        afT_ScoreAverage, statType = input$statType)
-    )
-    output$dsmOrientedTable <- renderTable(
-        buildStatsTable(selectedAthlete(), selectedTeam(), dsmCols, dsmCats,
-                        dsmT_ScoreAverage, statType = input$statType)
-    )
-    output$syndromeTable <- renderTable(
-        buildStatsTable(selectedAthlete(), selectedTeam(), ssCols, ssCats,
-                        ssT_ScoreAverage, statType = input$statType)
-    )
+    output$adaptiveFunctioningTable <- renderTable(adaptiveFunctioning())
+    output$dsmOrientedTable <- renderTable(dsmOriented())
+    output$syndromeTable <- renderTable(syndrome())
+    
+    # Radar plot of comparison data
+    output$adaptiveFunctioningPlot <- renderPlot({
+        buildRadarChart(adaptiveFunctioning())
+    })
+    output$dsmOrientedPlot <- renderPlot({
+        buildRadarChart(dsmOriented())
+    })
+    output$syndromePlot <- renderPlot({
+        buildRadarChart(syndrome())
+    })
     
 }
 
