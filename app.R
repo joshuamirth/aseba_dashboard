@@ -45,15 +45,27 @@ buildStatsTable <- function(athlete, team, cols, cats, tScoreAverage, statType="
     tScoreTeam <- colMeans(team[,cols], na.rm=T)
     if(statType == "T_Score"){
         tableFrame <- data.frame(cats, tScoreAverage, tScoreTeam, tScoreAthlete)
-        colnames(tableFrame) <- c("Category", "All Athletes T Score Average",
-                            "Teammates' T Score Average", "Individual T Score")    
+        colnames(tableFrame) <- c("Category", "All Athletes (T)",
+                            "Teammates (T)", "Individual (T)")    
     } else {
         tableFrame <- data.frame(cats, 100*pnorm(tScoreAverage, 50, 10),
             100*pnorm(tScoreTeam, 50, 10), 100*pnorm(tScoreAthlete, 50, 10))
-            colnames(tableFrame) <- c("Category", "All Athletes Percentile Average",
-                            "Teammates' Percentile Average", "Individual Percentile")    
+            colnames(tableFrame) <- c("Category", "All Athletes (%)",
+                            "Teammates (%)", "Individual (%)")    
     }
     return(tableFrame)
+}
+
+# TODO: Dates may not be in order. Want last date - first date.
+# TODO: behaves poorly before data selection made.
+buildDeltaTable <- function(athlete, cols, cats, dates, statType="T_Score"){
+    tScoreAthlete <- t(as.matrix(athlete[,cols]))
+    deltas <- tScoreAthlete[,ncol(tScoreAthlete)] - tScoreAthlete[,1]
+    deltaFrame <- data.frame(cats, cbind(tScoreAthlete, deltas))
+    colVec <- append(dates, "Category", after=0)
+    colVec <- append(colVec, "Delta")
+    colnames(deltaFrame) <- colVec
+    return(deltaFrame)
 }
 
 # Radar chart commands. Separate function so they can all by styled.
@@ -86,18 +98,48 @@ ui <- fluidPage(
             
             uiOutput("dateSelection"),
             
-            radioButtons("statType", "Display Style:", c("T Score" = "T_Score", "Percentile" = "Percentile"))
-           
+            radioButtons("statType", "Display Style:",
+                         c("T Score" = "T_Score","Percentile" = "Percentile")),
+            width=3
         ),
 
         # Show a plot of the generated distribution
         mainPanel(
-           tableOutput("adaptiveFunctioningTable"),
-           tableOutput("syndromeTable"),
-           tableOutput("dsmOrientedTable"),
-           plotOutput("adaptiveFunctioningPlot"),
-           plotOutput("syndromePlot"),
-           plotOutput("dsmOrientedPlot"),
+            fluidRow(
+                h3("Adaptive Functioning Scores"),
+                column(6,
+                    tableOutput("adaptiveFunctioningTable"),
+                ),
+                column(6,
+                    plotOutput("adaptiveFunctioningPlot"),
+                )
+            ),
+            fluidRow(
+                h3("Syndrome Scores"),
+                column(6,
+                    tableOutput("syndromeTable"),
+                ),
+                column(6,
+                    plotOutput("syndromePlot"),
+                )
+            ),
+            fluidRow(
+                h3("DSM-Oriented Scores"),
+                column(6,
+                    tableOutput("dsmOrientedTable"),
+                ),
+                column(6,
+                    plotOutput("dsmOrientedPlot"),
+                )
+            ),
+            
+           tableOutput("athleteDeltaTable"),
+           
+           # tableOutput("dsmOrientedTable"),
+           # plotOutput("syndromePlot"),
+           # plotOutput("dsmOrientedPlot"),
+           
+           width=9
         )
         
     )
@@ -111,14 +153,9 @@ server <- function(input, output) {
     # Rows for the team and athlete chosen.
     selectedTeamIdx <- reactive(which(df$TEAM == input$team))
     selectedTeam <- reactive(df[selectedTeamIdx(),])
-    # TODO: currently selecting last index at which an athlete occurs. There are
-    # athletes with multiple occurrences. Want to handle this with a third
-    # drop-down (implemented). Still need to correctly update to that row.
-    # Currently defaulting to showing last occurrence of athlete in data (by
-    # index, not necessarily by date).
     selectedAthleteAllIdx <- reactive(which(selectedTeam()$NAME == input$athlete))
     selectedAthlete <- reactive(selectedTeam()[selectedAthleteAllIdx(),])
-    selectedDateIdx <- reactive(which.max(selectedAthlete()$DateOnForm == input$date))
+    selectedDateIdx <- reactive(which(selectedAthlete()$DateOnForm == input$date))
     selectedAssessment <- reactive(selectedAthlete()[selectedDateIdx(),])
     
     # List of athletes associated to selected team.
@@ -129,7 +166,7 @@ server <- function(input, output) {
     
     output$dateSelection <- renderUI({
         selectInput("date", "Assessment Date:",
-                    choices = df$DateOnForm[selectedAthleteAllIdx()])
+                    choices = selectedTeam()$DateOnForm[selectedAthleteAllIdx()])
     })
     
     # dataframes for selected athlete.
@@ -149,6 +186,14 @@ server <- function(input, output) {
                                          ssCols, ssCats,
                                          ssT_ScoreAverage,
                                          statType = input$statType))
+    
+    # TODO: create table of athlete deltas.
+    athleteDelta <- reactive(buildDeltaTable(
+        selectedAthlete(), ssCols, ssCats,
+        selectedTeam()$DateOnForm[selectedAthleteAllIdx()]
+    ))
+
+    output$athleteDeltaTable <- renderTable(athleteDelta())
     
     # Tables of T-scores/Percentiles compared with all athletes and teammates.
     output$adaptiveFunctioningTable <- renderTable(adaptiveFunctioning())
