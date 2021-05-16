@@ -64,6 +64,7 @@ buildRadarChart <- function(tableFrame){
         rep(0, nrow(tableFrame)),
         t(tableFrame[,-1])   # first column is labels
     ))   
+    radarData[is.na(radarData)] <- 0
     radarchart(radarData, vlabels=tableFrame[,1])
 }
 
@@ -109,17 +110,17 @@ server <- function(input, output) {
 
     # Rows for the team and athlete chosen.
     selectedTeamIdx <- reactive(which(df$TEAM == input$team))
+    selectedTeam <- reactive(df[selectedTeamIdx(),])
     # TODO: currently selecting last index at which an athlete occurs. There are
     # athletes with multiple occurrences. Want to handle this with a third
     # drop-down (implemented). Still need to correctly update to that row.
     # Currently defaulting to showing last occurrence of athlete in data (by
     # index, not necessarily by date).
-    selectedAthleteAllIdx <- reactive(which(df$NAME == input$athlete))
-    selectedDateIdx <- reactive(which(df$DateOnForm == input$date)) # This gets all instances of data, not just those associated with athlete!
-    selectedAthleteIdx <- reactive(max(selectedAthleteAllIdx()))
-    selectedTeam <- reactive(df[selectedTeamIdx(),])
-    selectedAthlete <- reactive(df[selectedAthleteIdx(),])
-   
+    selectedAthleteAllIdx <- reactive(which(selectedTeam()$NAME == input$athlete))
+    selectedAthlete <- reactive(selectedTeam()[selectedAthleteAllIdx(),])
+    selectedDateIdx <- reactive(which.max(selectedAthlete()$DateOnForm == input$date))
+    selectedAssessment <- reactive(selectedAthlete()[selectedDateIdx(),])
+    
     # List of athletes associated to selected team.
     output$athleteSelection <- renderUI({
         selectInput("athlete", "Athlete:",
@@ -132,18 +133,18 @@ server <- function(input, output) {
     })
     
     # dataframes for selected athlete.
-    adaptiveFunctioning <- reactive(buildStatsTable(selectedAthlete(),
+    adaptiveFunctioning <- reactive(buildStatsTable(selectedAssessment(),
                                                     selectedTeam(),
                                                     afCols, afCats,
                                                     afT_ScoreAverage,
                                                     statType = input$statType))
-    dsmOriented <- reactive(buildStatsTable(selectedAthlete(),
+    dsmOriented <- reactive(buildStatsTable(selectedAssessment(),
                                    selectedTeam(),
                                    dsmCols,
                                    dsmCats,
                                    dsmT_ScoreAverage,
                                    statType = input$statType))
-    syndrome <- reactive(buildStatsTable(selectedAthlete(),
+    syndrome <- reactive(buildStatsTable(selectedAssessment(),
                                          selectedTeam(),
                                          ssCols, ssCats,
                                          ssT_ScoreAverage,
