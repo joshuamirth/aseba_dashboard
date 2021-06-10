@@ -56,16 +56,21 @@ buildStatsTable <- function(athlete, team, cols, cats, tScoreAverage, statType="
     return(tableFrame)
 }
 
-# TODO: Dates may not be in order. Want last date - first date.
-# TODO: behaves poorly before data selection made.
-buildDeltaTable <- function(athlete, cols, cats, dates, statType="T_Score"){
-    tScoreAthlete <- t(as.matrix(athlete[,cols]))
-    deltas <- tScoreAthlete[,ncol(tScoreAthlete)] - tScoreAthlete[,1]
-    deltaFrame <- data.frame(cats, cbind(tScoreAthlete, deltas))
-    colVec <- append(dates, "Category", after=0)
-    colVec <- append(colVec, "Delta")
-    colnames(deltaFrame) <- colVec
-    return(deltaFrame)
+# Build table comparing assessments at two different dates.
+buildDeltaTable <- function(assessment, comparison, cols, cats, statType="T_Score"){
+    if(statType == "T_Score"){
+        assessmentData <- as.numeric(assessment[cols]) # cast to avoid no data selected error.
+        comparisonData <- as.numeric(comparison[cols])
+        deltaLabel <- "Delta (T)"
+    } else {
+        assessmentData <- 100*pnorm(as.numeric(assessment[cols]), 50, 10)
+        comparisonData <- 100*pnorm(as.numeric(comparison[cols]), 50, 10)
+        deltaLabel <- "Delta (%)"
+    }
+    delta <- assessmentData - comparisonData
+    deltaTable <- data.frame(cats, t(rbind(comparisonData, assessmentData, delta)))
+    colnames(deltaTable) <- c("Category", comparison$DateOnForm, assessment$DateOnForm, deltaLabel)
+    return(deltaTable)
 }
 
 # Radar chart commands. Separate function so they can all by styled.
@@ -97,6 +102,8 @@ ui <- fluidPage(
             uiOutput("athleteSelection"),
             
             uiOutput("dateSelection"),
+            
+            uiOutput("dateSelectionDelta"),
             
             radioButtons("statType", "Display Style:",
                          c("T Score" = "T_Score","Percentile" = "Percentile")),
@@ -132,12 +139,10 @@ ui <- fluidPage(
                     plotOutput("dsmOrientedPlot"),
                 )
             ),
-            
-           tableOutput("athleteDeltaTable"),
-           
-           # tableOutput("dsmOrientedTable"),
-           # plotOutput("syndromePlot"),
-           # plotOutput("dsmOrientedPlot"),
+            fluidRow(
+                h3("Assessment Comparison"),
+                tableOutput("athleteDeltaTable"),
+            ),
            
            width=9
         )
@@ -157,6 +162,8 @@ server <- function(input, output) {
     selectedAthlete <- reactive(selectedTeam()[selectedAthleteAllIdx(),])
     selectedDateIdx <- reactive(which(selectedAthlete()$DateOnForm == input$date))
     selectedAssessment <- reactive(selectedAthlete()[selectedDateIdx(),])
+    deltaDateIdx <- reactive(which(selectedAthlete()$DateOnForm == input$dateDelta))
+    deltaAssessment <- reactive(selectedAthlete()[deltaDateIdx(),])
     
     # List of athletes associated to selected team.
     output$athleteSelection <- renderUI({
@@ -164,12 +171,18 @@ server <- function(input, output) {
                     choices = unique(df$NAME[selectedTeamIdx()]))
     })
     
+    # List of dates associated to selected athlete.
     output$dateSelection <- renderUI({
         selectInput("date", "Assessment Date:",
                     choices = selectedTeam()$DateOnForm[selectedAthleteAllIdx()])
     })
     
-    # dataframes for selected athlete.
+    output$dateSelectionDelta <- renderUI({
+        selectInput("dateDelta", "Comparison Assessment Date:",
+                    choices = selectedTeam()$DateOnForm[selectedAthleteAllIdx()])
+    })   
+    
+    # Data for selected athlete.
     adaptiveFunctioning <- reactive(buildStatsTable(selectedAssessment(),
                                                     selectedTeam(),
                                                     afCols, afCats,
@@ -189,8 +202,7 @@ server <- function(input, output) {
     
     # TODO: create table of athlete deltas.
     athleteDelta <- reactive(buildDeltaTable(
-        selectedAthlete(), ssCols, ssCats,
-        selectedTeam()$DateOnForm[selectedAthleteAllIdx()]
+        selectedAssessment(), deltaAssessment(), ssCols, ssCats, statType=input$statType
     ))
 
     output$athleteDeltaTable <- renderTable(athleteDelta())
