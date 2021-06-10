@@ -39,6 +39,10 @@ dsmCols <- c("Depressive_Problems_TScore", "Anxiety_Problems_TScore",
              "AD_H_Problems_TScore", "Antisocial_Personality_TScore")
 dsmT_ScoreAverage <- colMeans(df[,dsmCols], na.rm = T)
 
+##############################################################################
+# General functions
+##############################################################################
+
 # Function to create table of individual, team, and all test score values.
 buildStatsTable <- function(athlete, team, cols, cats, tScoreAverage, statType="T_Score"){
     tScoreAthlete <- as.numeric(athlete[cols])
@@ -82,7 +86,14 @@ buildRadarChart <- function(tableFrame){
         t(tableFrame[,-1])   # first column is labels
     ))   
     radarData[is.na(radarData)] <- 0
-    radarchart(radarData, vlabels=tableFrame[,1])
+    radarchart(radarData,
+               pcol = 1:3,
+               vlabels=tableFrame[,1])
+    legend("bottomleft",
+           legend=c("All Athletes", "Teammates", "Individual"),
+           bty = "n",
+           pch = 20,
+           col = 1:3)
 }
 
 ##############################################################################
@@ -96,15 +107,10 @@ ui <- fluidPage(
     # Sidebar with a slider input for number of bins 
     sidebarLayout(
         sidebarPanel(
-            
             selectInput("team", "Team:", df$TEAM),
-            
             uiOutput("athleteSelection"),
-            
             uiOutput("dateSelection"),
-            
             uiOutput("dateSelectionDelta"),
-            
             radioButtons("statType", "Display Style:",
                          c("T Score" = "T_Score","Percentile" = "Percentile")),
             width=3
@@ -140,8 +146,10 @@ ui <- fluidPage(
                 )
             ),
             fluidRow(
-                h3("Assessment Comparison"),
-                tableOutput("athleteDeltaTable"),
+                h2("Assessment Comparison"),
+                tableOutput("adaptiveFunctioningDeltaTable"),
+                tableOutput("syndromeDeltaTable"), 
+                tableOutput("dsmOrientedDeltaTable"), 
             ),
            
            width=9
@@ -162,8 +170,8 @@ server <- function(input, output) {
     selectedAthlete <- reactive(selectedTeam()[selectedAthleteAllIdx(),])
     selectedDateIdx <- reactive(which(selectedAthlete()$DateOnForm == input$date))
     selectedAssessment <- reactive(selectedAthlete()[selectedDateIdx(),])
-    deltaDateIdx <- reactive(which(selectedAthlete()$DateOnForm == input$dateDelta))
-    deltaAssessment <- reactive(selectedAthlete()[deltaDateIdx(),])
+    comparisonDateIdx <- reactive(which(selectedAthlete()$DateOnForm == input$compdate))
+    comparisonAssessment <- reactive(selectedAthlete()[comparisonDateIdx(),])
     
     # List of athletes associated to selected team.
     output$athleteSelection <- renderUI({
@@ -178,7 +186,7 @@ server <- function(input, output) {
     })
     
     output$dateSelectionDelta <- renderUI({
-        selectInput("dateDelta", "Comparison Assessment Date:",
+        selectInput("compdate", "Comparison Assessment Date:",
                     choices = selectedTeam()$DateOnForm[selectedAthleteAllIdx()])
     })   
     
@@ -200,17 +208,25 @@ server <- function(input, output) {
                                          ssT_ScoreAverage,
                                          statType = input$statType))
     
-    # TODO: create table of athlete deltas.
-    athleteDelta <- reactive(buildDeltaTable(
-        selectedAssessment(), deltaAssessment(), ssCols, ssCats, statType=input$statType
+    # Create table of athlete deltas.
+    adaptiveFunctioningDelta <- reactive(buildDeltaTable(
+        selectedAssessment(), comparisonAssessment(), afCols, afCats, statType=input$statType
     ))
-
-    output$athleteDeltaTable <- renderTable(athleteDelta())
+    syndromeDelta <- reactive(buildDeltaTable(
+        selectedAssessment(), comparisonAssessment(), ssCols, ssCats, statType=input$statType
+    ))
+    dsmOrientedDelta <- reactive(buildDeltaTable(
+        selectedAssessment(), comparisonAssessment(), dsmCols, dsmCats, statType=input$statType
+    ))
+    
+    output$adaptiveFunctioningDeltaTable <- renderTable(adaptiveFunctioningDelta())
+    output$syndromeDeltaTable <- renderTable(syndromeDelta())
+    output$dsmOrientedDeltaTable <- renderTable(dsmOrientedDelta())
     
     # Tables of T-scores/Percentiles compared with all athletes and teammates.
     output$adaptiveFunctioningTable <- renderTable(adaptiveFunctioning())
-    output$dsmOrientedTable <- renderTable(dsmOriented())
     output$syndromeTable <- renderTable(syndrome())
+    output$dsmOrientedTable <- renderTable(dsmOriented())
     
     # Radar plot of comparison data
     
