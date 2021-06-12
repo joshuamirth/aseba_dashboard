@@ -20,6 +20,15 @@ afCols <- c("Friends_TScore", "Spouse_Partner_TScore", "Family_TScore",
            "Personal_Strengths_TScore")
 afT_ScoreAverage <- colMeans(df[,afCols], na.rm = T)
 
+# DSM-Oriented
+dsmCats <- c("Depressive Problems", "Anxiety Problems", "Somatic Problems",
+             "Avoidant Personality Problems", "AD/H Problems",
+             "Antisocial Personality")
+dsmCols <- c("Depressive_Problems_TScore", "Anxiety_Problems_TScore",
+             "Somatic_Problems_TScore", "Avoidant_Personality_Problems_TScore",
+             "AD_H_Problems_TScore", "Antisocial_Personality_TScore")
+dsmT_ScoreAverage <- colMeans(df[,dsmCols], na.rm = T)
+
 # Syndromes
 ssCats <- c("Anxious/Depressed", "Withdrawn", "Somatic Complaints",
             "Thought Problems", "Attention Problems", "Aggressive Behavior",
@@ -30,14 +39,6 @@ ssCols <- c("Anxious__Depressed_TScore", "Withdrawn_TScore",
             "Rule_Breaking_Behavior_TScore", "Intrusive_TScore")
 ssT_ScoreAverage <- colMeans(df[,ssCols], na.rm = T)
 
-# DSM-Oriented
-dsmCats <- c("Depressive Problems", "Anxiety Problems", "Somatic Problems",
-             "Avoidant Personality Problems", "AD/H Problems",
-             "Antisocial Personality")
-dsmCols <- c("Depressive_Problems_TScore", "Anxiety_Problems_TScore",
-             "Somatic_Problems_TScore", "Avoidant_Personality_Problems_TScore",
-             "AD_H_Problems_TScore", "Antisocial_Personality_TScore")
-dsmT_ScoreAverage <- colMeans(df[,dsmCols], na.rm = T)
 
 ##############################################################################
 # General functions
@@ -77,6 +78,34 @@ buildDeltaTable <- function(assessment, comparison, cols, cats, statType="T_Scor
     return(deltaTable)
 }
 
+buildConcernList <- function(athlete){
+    afBorderIdx <- which((athlete[,afCols] < 7) & (athlete[,afCols] > 3), arr.ind=T)[,2]
+    dsmBorderIdx <- which((athlete[,dsmCols] > 93) & (athlete[,dsmCols] < 97), arr.ind=T)[,2]
+    ssBorderIdx <- which((athlete[,ssCols] > 93) & (athlete[,ssCols] < 97), arr.ind=T)[,2]
+    if(length(afBorderIdx) + length(dsmBorderIdx) + length(ssBorderIdx) > 0){
+        borderline <- c(afCats[afBorderIdx],
+                            dsmCats[dsmBorderIdx],
+                            ssCats[ssBorderIdx])
+    } else {
+        borderline <- "None"
+    }
+    return(borderline)
+}
+
+buildClinicalList <- function(athlete){
+    afClinicIdx <- which(athlete[,afCols] < 3, arr.ind=T)[,2]
+    dsmClinicIdx <- which(athlete[,dsmCols] > 97, arr.ind=T)[,2]
+    ssClinicIdx <- which(athlete[,ssCols] > 97, arr.ind=T)[,2]
+    if(length(afClinicIdx) + length(dsmClinicIdx) + length(ssClinicIdx) > 0){
+        clinical <- c(afCats[afClinicIdx],
+                            dsmCats[dsmClinicIdx],
+                            ssCats[ssClinicIdx])
+    } else {
+        clinical <- "None"
+    }
+    return(clinical)
+}
+
 # Radar chart commands. Separate function so they can all by styled.
 # TODO: add better formatting.
 buildRadarChart <- function(tableFrame){
@@ -102,7 +131,7 @@ buildRadarChart <- function(tableFrame){
 ui <- fluidPage(
 
     # Application title
-    titlePanel("Liberty University Resilience Room"),
+    titlePanel("Liberty University Athletes"),
 
     # Sidebar with a slider input for number of bins 
     sidebarLayout(
@@ -118,6 +147,11 @@ ui <- fluidPage(
 
         # Show a plot of the generated distribution
         mainPanel(
+            fluidRow(
+                h3("Areas of Concern:"),
+                textOutput("clinical"),
+                textOutput("borderline"),
+            ),
             fluidRow(
                 h3("Adaptive Functioning Scores"),
                 column(6,
@@ -208,30 +242,42 @@ server <- function(input, output) {
                                          ssT_ScoreAverage,
                                          statType = input$statType))
     
+    clinicalConcerns <- reactive(buildClinicalList(selectedAthlete()))
+    borderlineConcerns <- reactive(buildConcernList(selectedAthlete()))
+    output$clinical <- renderText(c("Clinical:", clinicalConcerns()))
+    output$borderline <- renderText(c("Borderline:", borderlineConcerns()))
+    
     # Create table of athlete deltas.
     adaptiveFunctioningDelta <- reactive(buildDeltaTable(
-        selectedAssessment(), comparisonAssessment(), afCols, afCats, statType=input$statType
+        selectedAssessment(),
+        comparisonAssessment(),
+        afCols, afCats,
+        statType=input$statType
     ))
     syndromeDelta <- reactive(buildDeltaTable(
-        selectedAssessment(), comparisonAssessment(), ssCols, ssCats, statType=input$statType
+        selectedAssessment(),
+        comparisonAssessment(),
+        ssCols, ssCats,
+        statType=input$statType
     ))
     dsmOrientedDelta <- reactive(buildDeltaTable(
-        selectedAssessment(), comparisonAssessment(), dsmCols, dsmCats, statType=input$statType
+        selectedAssessment(),
+        comparisonAssessment(),
+        dsmCols, dsmCats,
+        statType=input$statType
     ))
-    
-    output$adaptiveFunctioningDeltaTable <- renderTable(adaptiveFunctioningDelta())
-    output$syndromeDeltaTable <- renderTable(syndromeDelta())
-    output$dsmOrientedDeltaTable <- renderTable(dsmOrientedDelta())
     
     # Tables of T-scores/Percentiles compared with all athletes and teammates.
     output$adaptiveFunctioningTable <- renderTable(adaptiveFunctioning())
     output$syndromeTable <- renderTable(syndrome())
     output$dsmOrientedTable <- renderTable(dsmOriented())
     
-    # Radar plot of comparison data
+    # Tables of assessment deltas
+    output$adaptiveFunctioningDeltaTable <- renderTable(adaptiveFunctioningDelta())
+    output$syndromeDeltaTable <- renderTable(syndromeDelta())
+    output$dsmOrientedDeltaTable <- renderTable(dsmOrientedDelta())
     
-    # TODO: figure out how to handle the errors that occur when no data is yet
-    # selected (it doesn't cause issues, so at least suppress the output.)
+    # Radar plots
     output$adaptiveFunctioningPlot <- renderPlot({
         buildRadarChart(adaptiveFunctioning())
     })
