@@ -2,11 +2,17 @@ library(shiny)
 library(fmsb) # for radar charts
 
 ##############################################################################
-# Data pre-processing.
+#Data pre-processing.
 ##############################################################################
-# Import the data set from the database. (Currently just
-# a flat R data frame.)
+#Import the data set from the database. (Currently just a flat R data frame.)
 df <- readRDS("data/lu_data.Rda")
+# Correct database values. Spouse/Partner score often reported as zero when
+# respondent does not have a spouse/partner. Better to treat these as zeros.
+df$Spouse_Partner_TScore[which(df$Spouse_Partner_TScore < .01)] = NA
+# Dates missing from some assessments. Replace with unique identifier (even
+# though not meaningful).
+missingDates <- which(df$DateOnForm == "")
+df$DateOnForm[missingDates] <- df$FormId[missingDates]
 
 # Compute ASEBA statistics for all athletes in dataset. Three categories:
 # Adaptive Functioning, Syndrome, and DSM-Oriented scale scores. Build each as a
@@ -255,8 +261,8 @@ server <- function(input, output) {
                                          ssT_ScoreAverage,
                                          statType = input$statType))
     
-    clinicalConcerns <- reactive(buildClinicalList(selectedAthlete()))
-    borderlineConcerns <- reactive(buildConcernList(selectedAthlete()))
+    clinicalConcerns <- reactive(buildClinicalList(selectedAssessment()))
+    borderlineConcerns <- reactive(buildConcernList(selectedAssessment()))
     output$clinical <- renderText(
         paste("Clinical:", paste(clinicalConcerns(), collapse=", ")))
     output$borderline <- renderText(
