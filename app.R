@@ -82,8 +82,12 @@ buildDeltaTable <- function(assessment, comparison, cols, cats, statType="T_Scor
         deltaLabel <- "Delta (%)"
     }
     delta <- assessmentData - comparisonData
-    deltaTable <- data.frame(cats, t(rbind(comparisonData, assessmentData, delta)))
-    colnames(deltaTable) <- c("Category", comparison$DateOnForm, assessment$DateOnForm, deltaLabel)
+    deltaTable <- data.frame(t(rbind(comparisonData, assessmentData, delta)))
+    # TODO: Improve this mild hack with adding "A" and "B" to column names.
+    # Formatted tables do not behave well with duplicate column names so need to
+    # force these to be different at all times.
+    colnames(deltaTable) <- c(paste("A:", comparison$DateOnForm), paste("B:", assessment$DateOnForm), deltaLabel)
+    rownames(deltaTable) <- cats
     return(deltaTable)
 }
 
@@ -168,12 +172,18 @@ lowConcernFormat <- list(
     `All Athletes (%)` = formatter("span", x ~ percent(x / 100)),
     `Teammates (%)` = formatter("span", x ~ percent(x / 100)),
     `Individual (%)` = formatter("span", x ~ percent(x / 100),
-                                   style = x ~ style(`background-color` = ifelse(x < 3, "red",
+                                   style = x ~ style(display = "block",
+                                                     padding = "0 4px",
+                                                     `border-radius` = "4px",
+                                                     `background-color` = ifelse(x < 3, "red",
                                                                                  ifelse(x < 7, "yellow", "white")))),
     `All Athletes (T)` = formatter("span", x ~ digits(x, 2)),
     `Teammates (T)` = formatter("span", x ~ digits(x, 2)),
     `Individual (T)` = formatter("span", x ~ digits(x, 2),
-                                   style = x ~ style(`background-color` = ifelse(x < LOW_CLINIC, "red",
+                                   style = x ~ style(display = "block",
+                                                     padding = "0 4px",
+                                                     `border-radius` = "4px",
+                                                     `background-color` = ifelse(x < LOW_CLINIC, "red",
                                                                                  ifelse(x < LOW_BORDER, "yellow", "white"))))
 )
 
@@ -181,13 +191,48 @@ hiConcernFormat <- list(
     `All Athletes (%)` = formatter("span", x ~ percent(x / 100)),
     `Teammates (%)` = formatter("span", x ~ percent(x / 100)),
     `Individual (%)` = formatter("span", x ~ percent(x / 100),
-                                   style = x ~ style(`background-color` = ifelse(x > 97, "red",
+                                   style = x ~ style(display = "block",
+                                                     padding = "0 4px",
+                                                     `border-radius` = "4px",
+                                                     `background-color` = ifelse(x > 97, "red",
                                                                                  ifelse(x > 93, "yellow", "white")))),
     `All Athletes (T)` = formatter("span", x ~ digits(x, 2)),
     `Teammates (T)` = formatter("span", x ~ digits(x, 2)),
     `Individual (T)` = formatter("span", x ~ digits(x, 2),
-                                   style = x ~ style(`background-color` = ifelse(x > HI_CLINIC, "red",
+                                   style = x ~ style(display = "block",
+                                                     padding = "0 4px",
+                                                     `border-radius` = "4px",
+                                                     `background-color` = ifelse(x > HI_CLINIC, "red",
                                                                                  ifelse(x > HI_BORDER, "yellow", "white"))))
+)
+
+# TODO: Improve colors for delta (gradient?).
+deltaFormatPos <- list(
+    area(col = 1:2) ~ function(x) digits(x, 1),
+    `Delta (%)` = formatter("span", x ~ percent(x/100),
+                            style = x ~ style(display = "block",
+                                              padding = "0 4px",
+                                              `border-radius` = "4px",
+                                              `background-color` = ifelse(x > 0, "blue", "red"))),
+    `Delta (%)` = formatter("span", x ~ digits(x, 1),
+                            style = x ~ style(display = "block",
+                                              padding = "0 4px",
+                                              `border-radius` = "4px",
+                                              `background-color` = ifelse(x > 0, "blue", "red")))
+)
+
+deltaFormatNeg <- list(
+    area(col = 1:2) ~ function(x) digits(x, 1),
+    `Delta (%)` = formatter("span", x ~ percent(x/100),
+                            style = x ~ style(display = "block",
+                                              padding = "0 4px",
+                                              `border-radius` = "4px",
+                                              `background-color` = ifelse(x < 0, "blue", "red"))),
+    `Delta (%)` = formatter("span", x ~ digits(x, 1),
+                            style = x ~ style(display = "block",
+                                              padding = "0 4px",
+                                              `border-radius` = "4px",
+                                              `background-color` = ifelse(x < 0, "blue", "red")))
 )
 
 ##############################################################################
@@ -247,9 +292,12 @@ ui <- fluidPage(
             ),
             fluidRow(
                 h2("Assessment Comparison"),
-                tableOutput("adaptiveFunctioningDeltaTable"),
-                tableOutput("syndromeDeltaTable"), 
-                tableOutput("dsmOrientedDeltaTable"), 
+                column(9,
+                formattableOutput("adaptiveFunctioningDeltaTable"),
+                formattableOutput("syndromeDeltaTable"), 
+                formattableOutput("dsmOrientedDeltaTable"), 
+                ),
+                column(3)
             ),
            
            width=9
@@ -341,9 +389,9 @@ server <- function(input, output, session) {
     output$dsmOrientedTable <- renderFormattable({formattable(dsmOriented(), hiConcernFormat)})
     
     # Tables of assessment deltas
-    output$adaptiveFunctioningDeltaTable <- renderTable(adaptiveFunctioningDelta())
-    output$syndromeDeltaTable <- renderTable(syndromeDelta())
-    output$dsmOrientedDeltaTable <- renderTable(dsmOrientedDelta())
+    output$adaptiveFunctioningDeltaTable <- renderFormattable({formattable(adaptiveFunctioningDelta(), deltaFormatPos)})
+    output$syndromeDeltaTable <- renderFormattable({formattable(syndromeDelta(), deltaFormatNeg)})
+    output$dsmOrientedDeltaTable <- renderFormattable({formattable(dsmOrientedDelta(), deltaFormatNeg)})
     
     # Radar plots
     output$adaptiveFunctioningPlot <- renderPlot({
