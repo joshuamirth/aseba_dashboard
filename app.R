@@ -20,10 +20,10 @@ df$DateOnForm[missingDates] <- df$FormId[missingDates]
 
 # Adaptive Functioning
 afCats <- c("Friends", "Spouse/Partner", "Family", "Job", "Education",
-                "Mean Adaptive", "Personal Strengths")
+            "Mean Adaptive", "Personal Strengths")
 afCols <- c("Friends_TScore", "Spouse_Partner_TScore", "Family_TScore",
-           "Job_TScore", "Education_TScore", "Mean_Adaptive_TScore",
-           "Personal_Strengths_TScore")
+            "Job_TScore", "Education_TScore", "Mean_Adaptive_TScore",
+            "Personal_Strengths_TScore")
 afT_ScoreAverage <- colMeans(df[,afCols], na.rm = T)
 
 # DSM-Oriented
@@ -57,12 +57,12 @@ buildStatsTable <- function(athlete, team, cols, cats, tScoreAverage, statType="
     if(statType == "T_Score"){
         tableFrame <- data.frame(cats, tScoreAverage, tScoreTeam, tScoreAthlete)
         colnames(tableFrame) <- c("Category", "All Athletes (T)",
-                            "Teammates (T)", "Individual (T)")    
+                                  "Teammates (T)", "Individual (T)")    
     } else {
         tableFrame <- data.frame(cats, 100*pnorm(tScoreAverage, 50, 10),
             100*pnorm(tScoreTeam, 50, 10), 100*pnorm(tScoreAthlete, 50, 10))
             colnames(tableFrame) <- c("Category", "All Athletes (%)",
-                            "Teammates (%)", "Individual (%)")    
+                                      "Teammates (%)", "Individual (%)")    
     }
     return(tableFrame)
 }
@@ -126,8 +126,14 @@ buildClinicalList <- function(athlete){
 }
 
 # Radar chart commands. Separate function so they can all by styled.
-# TODO: add better formatting.
+# Set color parameters.
+pcol = c(NA, "#FF1E1EFF", "#0007A3FF")          # Line colors
+col = c("#99999980", "#FF1E1EFF", "#0007A3FF")  # Legend colors
+plty = c(2,1,1)                 # Line styles
+pfcol = c("#99999980", NA, NA)  # Fill colors
+
 buildRadarChart <- function(tableFrame){
+    op <- par(mar = c(3, 1, 0.5, 1)) # Plot margins
     radarData <- data.frame(rbind(
         rep(100, nrow(tableFrame)),
         rep(0, nrow(tableFrame)),
@@ -135,13 +141,20 @@ buildRadarChart <- function(tableFrame){
     ))   
     radarData[is.na(radarData)] <- 0
     radarchart(radarData,
-               pcol = 1:3,
-               vlabels=tableFrame[,1])
-    legend("bottomleft",
+               pcol = pcol,
+               plty = plty,
+               pfcol = pfcol,
+               vlabels=tableFrame[,1],
+               vlcex=0.8)
+    legend("topleft",
            legend=c("All Athletes", "Teammates", "Individual"),
            bty = "n",
            pch = 20,
-           col = 1:3)
+           col = col,
+           inset=0,
+           cex=1,
+           pt.cex = 2)
+    par(op)
 }
 
 ##############################################################################
@@ -160,7 +173,7 @@ ui <- fluidPage(
             uiOutput("dateSelection"),
             uiOutput("dateSelectionDelta"),
             radioButtons("statType", "Display Style:",
-                         c("T Score" = "T_Score","Percentile" = "Percentile")),
+                         c("Percentile" = "Percentile", "T Score" = "T_Score")),
             width=3
         ),
 
