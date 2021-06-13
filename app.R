@@ -78,14 +78,27 @@ buildDeltaTable <- function(assessment, comparison, cols, cats, statType="T_Scor
     return(deltaTable)
 }
 
+# Clinical (borderline) percentiles are below 3 (7) or above 97 (97) depending
+# on portion of assessment. Constants are the equivalent T-Scores.
+LOW_BORDER = qnorm(.07, 50, 10)
+LOW_CLINIC= qnorm(.03, 50, 10)
+HI_BORDER = qnorm(.93, 50, 10)
+HI_CLINIC = qnorm(.97, 50, 10)
+
 buildConcernList <- function(athlete){
-    afBorderIdx <- which((athlete[,afCols] < 7) & (athlete[,afCols] > 3), arr.ind=T)[,2]
-    dsmBorderIdx <- which((athlete[,dsmCols] > 93) & (athlete[,dsmCols] < 97), arr.ind=T)[,2]
-    ssBorderIdx <- which((athlete[,ssCols] > 93) & (athlete[,ssCols] < 97), arr.ind=T)[,2]
+    afBorderIdx <- which(
+        (athlete[,afCols] < LOW_BORDER) & (athlete[,afCols] > LOW_CLINIC),
+        arr.ind=T)[,2]
+    dsmBorderIdx <- which(
+        (athlete[,dsmCols] > HI_BORDER) & (athlete[,dsmCols] < HI_CLINIC),
+        arr.ind=T)[,2]
+    ssBorderIdx <- which(
+        (athlete[,ssCols] > HI_BORDER) & (athlete[,ssCols] < HI_CLINIC),
+        arr.ind=T)[,2]
     if(length(afBorderIdx) + length(dsmBorderIdx) + length(ssBorderIdx) > 0){
         borderline <- c(afCats[afBorderIdx],
-                            dsmCats[dsmBorderIdx],
-                            ssCats[ssBorderIdx])
+                        dsmCats[dsmBorderIdx],
+                        ssCats[ssBorderIdx])
     } else {
         borderline <- "None"
     }
@@ -93,13 +106,13 @@ buildConcernList <- function(athlete){
 }
 
 buildClinicalList <- function(athlete){
-    afClinicIdx <- which(athlete[,afCols] < 3, arr.ind=T)[,2]
-    dsmClinicIdx <- which(athlete[,dsmCols] > 97, arr.ind=T)[,2]
-    ssClinicIdx <- which(athlete[,ssCols] > 97, arr.ind=T)[,2]
+    afClinicIdx <- which(athlete[,afCols] < LOW_CLINIC, arr.ind=T)[,2]
+    dsmClinicIdx <- which(athlete[,dsmCols] > HI_CLINIC, arr.ind=T)[,2]
+    ssClinicIdx <- which(athlete[,ssCols] > HI_CLINIC, arr.ind=T)[,2]
     if(length(afClinicIdx) + length(dsmClinicIdx) + length(ssClinicIdx) > 0){
         clinical <- c(afCats[afClinicIdx],
-                            dsmCats[dsmClinicIdx],
-                            ssCats[ssClinicIdx])
+                      dsmCats[dsmClinicIdx],
+                      ssCats[ssClinicIdx])
     } else {
         clinical <- "None"
     }
@@ -244,8 +257,10 @@ server <- function(input, output) {
     
     clinicalConcerns <- reactive(buildClinicalList(selectedAthlete()))
     borderlineConcerns <- reactive(buildConcernList(selectedAthlete()))
-    output$clinical <- renderText(c("Clinical:", clinicalConcerns()))
-    output$borderline <- renderText(c("Borderline:", borderlineConcerns()))
+    output$clinical <- renderText(
+        paste("Clinical:", paste(clinicalConcerns(), collapse=", ")))
+    output$borderline <- renderText(
+        paste("Borderline:", paste(borderlineConcerns(), collapse=", ")))
     
     # Create table of athlete deltas.
     adaptiveFunctioningDelta <- reactive(buildDeltaTable(
