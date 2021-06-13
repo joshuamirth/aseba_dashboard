@@ -1,10 +1,11 @@
 library(shiny)
-library(fmsb) # for radar charts
+library(fmsb)        # for radar charts.
+library(formattable) # For conditional formatting of tables.
 
 ##############################################################################
-#Data pre-processing.
+# Data pre-processing.
 ##############################################################################
-#Import the data set from the database. (Currently just a flat R data frame.)
+# Import the data set from the database. (Currently just a flat R data frame.)
 df <- readRDS("data/lu_data.Rda")
 # Correct database values. Spouse/Partner score often reported as zero when
 # respondent does not have a spouse/partner. Better to treat these as zeros.
@@ -55,15 +56,17 @@ buildStatsTable <- function(athlete, team, cols, cats, tScoreAverage, statType="
     tScoreAthlete <- as.numeric(athlete[cols])
     tScoreTeam <- colMeans(team[,cols], na.rm=T)
     if(statType == "T_Score"){
-        tableFrame <- data.frame(cats, tScoreAverage, tScoreTeam, tScoreAthlete)
-        colnames(tableFrame) <- c("Category", "All Athletes (T)",
+        tableFrame <- data.frame(tScoreAverage, tScoreTeam, tScoreAthlete)
+        colnames(tableFrame) <- c("All Athletes (T)",
                                   "Teammates (T)", "Individual (T)")    
     } else {
-        tableFrame <- data.frame(cats, 100*pnorm(tScoreAverage, 50, 10),
+        tableFrame <- data.frame(100*pnorm(tScoreAverage, 50, 10),
             100*pnorm(tScoreTeam, 50, 10), 100*pnorm(tScoreAthlete, 50, 10))
-            colnames(tableFrame) <- c("Category", "All Athletes (%)",
+            colnames(tableFrame) <- c("All Athletes (%)",
                                       "Teammates (%)", "Individual (%)")    
     }
+    # print(length(rownames(tableFrame)))
+    rownames(tableFrame) <- cats
     return(tableFrame)
 }
 
@@ -137,14 +140,14 @@ buildRadarChart <- function(tableFrame){
     radarData <- data.frame(rbind(
         rep(100, nrow(tableFrame)),
         rep(0, nrow(tableFrame)),
-        t(tableFrame[,-1])   # first column is labels
+        t(tableFrame)   # first column is labels
     ))   
     radarData[is.na(radarData)] <- 0
     radarchart(radarData,
                pcol = pcol,
                plty = plty,
                pfcol = pfcol,
-               vlabels=tableFrame[,1],
+               vlabels=rownames(tableFrame),
                vlcex=0.8)
     legend("topleft",
            legend=c("All Athletes", "Teammates", "Individual"),
@@ -156,6 +159,36 @@ buildRadarChart <- function(tableFrame){
            pt.cex = 2)
     par(op)
 }
+
+##############################################################################
+# Formatting and CSS
+##############################################################################
+# Conditional formatting for the main data tables.
+lowConcernFormat <- list(
+    `All Athletes (%)` = formatter("span", x ~ percent(x / 100)),
+    `Teammates (%)` = formatter("span", x ~ percent(x / 100)),
+    `Individual (%)` = formatter("span", x ~ percent(x / 100),
+                                   style = x ~ style(`background-color` = ifelse(x < 3, "red",
+                                                                                 ifelse(x < 7, "yellow", "white")))),
+    `All Athletes (T)` = formatter("span", x ~ digits(x, 2)),
+    `Teammates (T)` = formatter("span", x ~ digits(x, 2)),
+    `Individual (T)` = formatter("span", x ~ digits(x, 2),
+                                   style = x ~ style(`background-color` = ifelse(x < LOW_CLINIC, "red",
+                                                                                 ifelse(x < LOW_BORDER, "yellow", "white"))))
+)
+
+hiConcernFormat <- list(
+    `All Athletes (%)` = formatter("span", x ~ percent(x / 100)),
+    `Teammates (%)` = formatter("span", x ~ percent(x / 100)),
+    `Individual (%)` = formatter("span", x ~ percent(x / 100),
+                                   style = x ~ style(`background-color` = ifelse(x > 97, "red",
+                                                                                 ifelse(x > 93, "yellow", "white")))),
+    `All Athletes (T)` = formatter("span", x ~ digits(x, 2)),
+    `Teammates (T)` = formatter("span", x ~ digits(x, 2)),
+    `Individual (T)` = formatter("span", x ~ digits(x, 2),
+                                   style = x ~ style(`background-color` = ifelse(x > HI_CLINIC, "red",
+                                                                                 ifelse(x > HI_BORDER, "yellow", "white"))))
+)
 
 ##############################################################################
 # UI
@@ -187,7 +220,8 @@ ui <- fluidPage(
             fluidRow(
                 h3("Adaptive Functioning Scores"),
                 column(6,
-                    tableOutput("adaptiveFunctioningTable"),
+                    formattableOutput("adaptiveFunctioningTable"),
+                    # tableOutput("adaptiveFunctioningTable"),
                 ),
                 column(6,
                     plotOutput("adaptiveFunctioningPlot"),
@@ -196,7 +230,7 @@ ui <- fluidPage(
             fluidRow(
                 h3("Syndrome Scores"),
                 column(6,
-                    tableOutput("syndromeTable"),
+                    formattableOutput("syndromeTable"),
                 ),
                 column(6,
                     plotOutput("syndromePlot"),
@@ -205,7 +239,7 @@ ui <- fluidPage(
             fluidRow(
                 h3("DSM-Oriented Scores"),
                 column(6,
-                    tableOutput("dsmOrientedTable"),
+                    formattableOutput("dsmOrientedTable"),
                 ),
                 column(6,
                     plotOutput("dsmOrientedPlot"),
@@ -227,7 +261,7 @@ ui <- fluidPage(
 ##############################################################################
 # Server
 ##############################################################################
-server <- function(input, output) {
+server <- function(input, output, session) {
 
     # Rows for the team and athlete chosen.
     selectedTeamIdx <- reactive(which(df$TEAM == input$team))
@@ -302,9 +336,9 @@ server <- function(input, output) {
     ))
     
     # Tables of T-scores/Percentiles compared with all athletes and teammates.
-    output$adaptiveFunctioningTable <- renderTable(adaptiveFunctioning())
-    output$syndromeTable <- renderTable(syndrome())
-    output$dsmOrientedTable <- renderTable(dsmOriented())
+    output$adaptiveFunctioningTable <- renderFormattable({formattable(adaptiveFunctioning(), lowConcernFormat)})
+    output$syndromeTable <- renderFormattable({formattable(syndrome(), hiConcernFormat)})
+    output$dsmOrientedTable <- renderFormattable({formattable(dsmOriented(), hiConcernFormat)})
     
     # Tables of assessment deltas
     output$adaptiveFunctioningDeltaTable <- renderTable(adaptiveFunctioningDelta())
