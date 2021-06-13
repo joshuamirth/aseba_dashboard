@@ -134,10 +134,15 @@ buildClinicalList <- function(athlete){
 
 # Radar chart commands. Separate function so they can all by styled.
 # Set color parameters.
-pcol = c(NA, "#FF1E1EFF", "#0007A3FF")          # Line colors
-col = c("#99999980", "#FF1E1EFF", "#0007A3FF")  # Legend colors
+myRed = "#FF1E1EFF"
+myBlue = "#0007A3FF"
+myLBlue = "#B1CBEB"
+myGrey = "#99999980"
+myPink = "#FF9494FF"
+pcol = c(NA, myRed, myBlue)          # Line colors
+col = c(myGrey, myRed, myBlue)  # Legend colors
 plty = c(2,1,1)                 # Line styles
-pfcol = c("#99999980", NA, NA)  # Fill colors
+pfcol = c(myGrey, NA, NA)  # Fill colors
 
 buildRadarChart <- function(tableFrame){
     op <- par(mar = c(3, 1, 0.5, 1)) # Plot margins
@@ -172,19 +177,19 @@ lowConcernFormat <- list(
     `All Athletes (%)` = formatter("span", x ~ percent(x / 100)),
     `Teammates (%)` = formatter("span", x ~ percent(x / 100)),
     `Individual (%)` = formatter("span", x ~ percent(x / 100),
-                                   style = x ~ style(display = "block",
-                                                     padding = "0 4px",
-                                                     `border-radius` = "4px",
-                                                     `background-color` = ifelse(x < 3, "red",
-                                                                                 ifelse(x < 7, "yellow", "white")))),
+                                 style = x ~ style(display = "block",
+                                                   padding = "0 4px",
+                                                   `border-radius` = "4px",
+                                                   `background-color` = ifelse(x < 3, myRed,
+                                                                               ifelse(x < 7, myPink, "white")))),
     `All Athletes (T)` = formatter("span", x ~ digits(x, 2)),
     `Teammates (T)` = formatter("span", x ~ digits(x, 2)),
     `Individual (T)` = formatter("span", x ~ digits(x, 2),
-                                   style = x ~ style(display = "block",
-                                                     padding = "0 4px",
-                                                     `border-radius` = "4px",
-                                                     `background-color` = ifelse(x < LOW_CLINIC, "red",
-                                                                                 ifelse(x < LOW_BORDER, "yellow", "white"))))
+                                 style = x ~ style(display = "block",
+                                                   padding = "0 4px",
+                                                   `border-radius` = "4px",
+                                                   `background-color` = ifelse(x < LOW_CLINIC, myRed,
+                                                                               ifelse(x < LOW_BORDER, myPink, "white"))))
 )
 
 hiConcernFormat <- list(
@@ -194,16 +199,16 @@ hiConcernFormat <- list(
                                    style = x ~ style(display = "block",
                                                      padding = "0 4px",
                                                      `border-radius` = "4px",
-                                                     `background-color` = ifelse(x > 97, "red",
-                                                                                 ifelse(x > 93, "yellow", "white")))),
+                                                     `background-color` = ifelse(x > 97, myRed,
+                                                                                 ifelse(x > 93, myPink, "white")))),
     `All Athletes (T)` = formatter("span", x ~ digits(x, 2)),
     `Teammates (T)` = formatter("span", x ~ digits(x, 2)),
     `Individual (T)` = formatter("span", x ~ digits(x, 2),
                                    style = x ~ style(display = "block",
                                                      padding = "0 4px",
                                                      `border-radius` = "4px",
-                                                     `background-color` = ifelse(x > HI_CLINIC, "red",
-                                                                                 ifelse(x > HI_BORDER, "yellow", "white"))))
+                                                     `background-color` = ifelse(x > HI_CLINIC, myRed,
+                                                                                 ifelse(x > HI_BORDER, myPink, "white"))))
 )
 
 # TODO: Improve colors for delta (gradient?).
@@ -213,12 +218,12 @@ deltaFormatPos <- list(
                             style = x ~ style(display = "block",
                                               padding = "0 4px",
                                               `border-radius` = "4px",
-                                              `background-color` = ifelse(x > 0, "blue", "red"))),
-    `Delta (%)` = formatter("span", x ~ digits(x, 1),
+                                              `background-color` = ifelse(x > 0, myLBlue, myGrey))),
+    `Delta (T)` = formatter("span", x ~ digits(x, 1),
                             style = x ~ style(display = "block",
                                               padding = "0 4px",
                                               `border-radius` = "4px",
-                                              `background-color` = ifelse(x > 0, "blue", "red")))
+                                              `background-color` = ifelse(x > 0, myLBlue, myGrey)))
 )
 
 deltaFormatNeg <- list(
@@ -227,12 +232,12 @@ deltaFormatNeg <- list(
                             style = x ~ style(display = "block",
                                               padding = "0 4px",
                                               `border-radius` = "4px",
-                                              `background-color` = ifelse(x < 0, "blue", "red"))),
-    `Delta (%)` = formatter("span", x ~ digits(x, 1),
+                                              `background-color` = ifelse(x < 0, myLBlue, myGrey))),
+    `Delta (T)` = formatter("span", x ~ digits(x, 1),
                             style = x ~ style(display = "block",
                                               padding = "0 4px",
                                               `border-radius` = "4px",
-                                              `background-color` = ifelse(x < 0, "blue", "red")))
+                                              `background-color` = ifelse(x < 0, myLBlue, myGrey)))
 )
 
 ##############################################################################
