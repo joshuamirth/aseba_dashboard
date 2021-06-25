@@ -6,7 +6,7 @@ library(formattable) # For conditional formatting of tables.
 # Data pre-processing.
 ##############################################################################
 # Import the data set from the database. (Currently just a flat R data frame.)
-df <- readRDS("data/lu_data.Rda")
+df <- readRDS("data/example.Rda")
 # Correct database values. Spouse/Partner score often reported as zero when
 # respondent does not have a spouse/partner. Better to treat these as zeros.
 df$Spouse_Partner_TScore[which(df$Spouse_Partner_TScore < .01)] = NA
