@@ -27,6 +27,8 @@ tab in the lower right. Click the install button and enter the name of the
 package. (Make sure that "install dependencies" is selected.) The three
 packages to install are `shiny`, `fmsb`, and `formattable`.
 
+![Package installation](/images/install_package.png)
+
 You can also install these from the R Console (be default in the lower left of
 the RStudio IDE). The appropriate command is `install.packages($PACKAGE_NAME)`,
 replacing `$PACKAGE_NAME` with the name of the desired package.
@@ -52,7 +54,8 @@ subfolder titled `data` containing an R database `example.Rda`. Add your R
 database file to this folder.
 
 Back in RStudio with `app.R` open in the editor, the 9th line of `app.R` gives
-the location of your data file. By defualt it is `df <- readRDS("data/example.Rda")`.
+the location of your data file. By default it is `df <- readRDS("data/example.Rda")`.
 Replace `example.Rda` with the name of your data file.
 
+![Data configuration](/images/data_config.png)
 
