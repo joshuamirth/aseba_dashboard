@@ -93,14 +93,14 @@ buildDeltaTable <- function(assessment, comparison, cols, cats, statType="T_Scor
 
 # Clinical (borderline) percentiles are below 3 (7) or above 97 (97) depending
 # on portion of assessment. Constants are the equivalent T-Scores.
-LOW_BORDER = qnorm(.07, 50, 10)
-LOW_CLINIC= qnorm(.03, 50, 10)
+LO_BORDER = qnorm(.07, 50, 10)
+LO_CLINIC= qnorm(.03, 50, 10)
 HI_BORDER = qnorm(.93, 50, 10)
 HI_CLINIC = qnorm(.97, 50, 10)
 
 buildConcernList <- function(athlete){
     afBorderIdx <- which(
-        (athlete[,afCols] < LOW_BORDER) & (athlete[,afCols] > LOW_CLINIC),
+        (athlete[,afCols] < LO_BORDER) & (athlete[,afCols] > LO_CLINIC),
         arr.ind=T)[,2]
     dsmBorderIdx <- which(
         (athlete[,dsmCols] > HI_BORDER) & (athlete[,dsmCols] < HI_CLINIC),
@@ -119,7 +119,7 @@ buildConcernList <- function(athlete){
 }
 
 buildClinicalList <- function(athlete){
-    afClinicIdx <- which(athlete[,afCols] < LOW_CLINIC, arr.ind=T)[,2]
+    afClinicIdx <- which(athlete[,afCols] < LO_CLINIC, arr.ind=T)[,2]
     dsmClinicIdx <- which(athlete[,dsmCols] > HI_CLINIC, arr.ind=T)[,2]
     ssClinicIdx <- which(athlete[,ssCols] > HI_CLINIC, arr.ind=T)[,2]
     if(length(afClinicIdx) + length(dsmClinicIdx) + length(ssClinicIdx) > 0){
@@ -139,6 +139,8 @@ myBlue = "#0007A3FF"
 myLBlue = "#B1CBEB"
 myGrey = "#99999980"
 myPink = "#FF9494FF"
+myLtGreen = "#99ff99"
+myGreen = "#00cc00"
 pcol = c(NA, myRed, myBlue)          # Line colors
 col = c(myGrey, myRed, myBlue)  # Legend colors
 plty = c(2,1,1)                 # Line styles
@@ -173,43 +175,70 @@ buildRadarChart <- function(tableFrame){
 # Formatting and CSS
 ##############################################################################
 # Conditional formatting for the main data tables.
-lowConcernFormat <- list(
-    `All Athletes (%)` = formatter("span", x ~ percent(x / 100)),
-    `Teammates (%)` = formatter("span", x ~ percent(x / 100)),
-    `Individual (%)` = formatter("span", x ~ percent(x / 100),
-                                 style = x ~ style(display = "block",
-                                                   padding = "0 4px",
-                                                   `border-radius` = "4px",
-                                                   `background-color` = ifelse(x < 3, myRed,
-                                                                               ifelse(x < 7, myPink, "white")))),
-    `All Athletes (T)` = formatter("span", x ~ digits(x, 2)),
-    `Teammates (T)` = formatter("span", x ~ digits(x, 2)),
-    `Individual (T)` = formatter("span", x ~ digits(x, 2),
-                                 style = x ~ style(display = "block",
-                                                   padding = "0 4px",
-                                                   `border-radius` = "4px",
-                                                   `background-color` = ifelse(x < LOW_CLINIC, myRed,
-                                                                               ifelse(x < LOW_BORDER, myPink, "white"))))
-)
 
-hiConcernFormat <- list(
-    `All Athletes (%)` = formatter("span", x ~ percent(x / 100)),
-    `Teammates (%)` = formatter("span", x ~ percent(x / 100)),
-    `Individual (%)` = formatter("span", x ~ percent(x / 100),
-                                   style = x ~ style(display = "block",
-                                                     padding = "0 4px",
-                                                     `border-radius` = "4px",
-                                                     `background-color` = ifelse(x > 97, myRed,
-                                                                                 ifelse(x > 93, myPink, "white")))),
-    `All Athletes (T)` = formatter("span", x ~ digits(x, 2)),
-    `Teammates (T)` = formatter("span", x ~ digits(x, 2)),
-    `Individual (T)` = formatter("span", x ~ digits(x, 2),
-                                   style = x ~ style(display = "block",
-                                                     padding = "0 4px",
-                                                     `border-radius` = "4px",
-                                                     `background-color` = ifelse(x > HI_CLINIC, myRed,
-                                                                                 ifelse(x > HI_BORDER, myPink, "white"))))
-)
+getFormatList <- function(nTeammates=1, high=TRUE){
+    teamStdDev <- 10/sqrt(nTeammates)
+    
+    teamHiBorder <- 50 + 1.5*teamStdDev
+    teamHiClinic <- 50 + 2.0*teamStdDev # "should" be 1.8.
+    teamLoBorder <- 50 - 1.5*teamStdDev
+    teamLoClinic <- 50 - 2.0*teamStdDev # "should" be 1.8.
+    
+    teamHiBorderPerc <- 100*pnorm(teamHiBorder, 50, 10)
+    teamHiClinicPerc <- 100*pnorm(teamHiClinic, 50, 10)
+    teamLoBorderPerc <- 100*pnorm(teamLoBorder, 50, 10)
+    teamLoClinicPerc <- 100*pnorm(teamLoClinic, 50, 10)
+    
+    if(high){
+        hiBorderColor = myPink
+        hiClinicColor = myRed
+        loBorderColor = myLtGreen
+        loClinicColor = myGreen
+    } else {
+        hiBorderColor = myLtGreen
+        hiClinicColor = myGreen
+        loBorderColor = myPink
+        loClinicColor = myRed
+    }
+    
+    concernFormat <- list(
+        `All Athletes (%)` = formatter("span", x ~ percent(x / 100)),
+        `Teammates (%)` = formatter("span", x ~ percent(x / 100),
+                            style = x ~ style(display = "block",
+                                padding = "0 4px",
+                                `border-radius` = "4px",
+                                `background-color` = ifelse(x > teamHiClinicPerc, hiClinicColor,
+                                                     ifelse(x > teamHiBorderPerc, hiBorderColor,
+                                                     ifelse(x > teamLoBorderPerc, "white",
+                                                     ifelse(x > teamLoClinicPerc, loBorderColor, loClinicColor)))))),       
+        `Individual (%)` = formatter("span", x ~ percent(x / 100),
+                            style = x ~ style(display = "block",
+                                padding = "0 4px",
+                                `border-radius` = "4px",
+                                `background-color` = ifelse(x > 97, hiClinicColor,
+                                                     ifelse(x > 93, hiBorderColor,
+                                                     ifelse(x > 7, "white",
+                                                     ifelse(x > 3, loBorderColor, loClinicColor)))))),
+        `All Athletes (T)` = formatter("span", x ~ digits(x, 2)),
+        `Teammates (T)` = formatter("span", x ~ digits(x, 2),
+                            style = x ~ style(display = "block",
+                                padding = "0 4px",
+                                `border-radius` = "4px",
+                                `background-color` = ifelse(x > teamHiClinic, hiClinicColor,
+                                                     ifelse(x > teamHiBorder, hiBorderColor,
+                                                     ifelse(x > teamLoBorder, "white",
+                                                     ifelse(x > teamLoClinic, loBorderColor, loClinicColor)))))),
+        `Individual (T)` = formatter("span", x ~ digits(x, 2),
+                             style = x ~ style(display = "block",
+                                 padding = "0 4px",
+                                 `border-radius` = "4px",
+                                 `background-color` = ifelse(x > HI_CLINIC, hiClinicColor,
+                                                      ifelse(x > HI_BORDER, hiBorderColor,
+                                                      ifelse(x > LO_BORDER, "white",
+                                                      ifelse(x > LO_CLINIC, loBorderColor, loClinicColor))))))
+    )
+    return(concernFormat)
+}
 
 # TODO: Improve colors for delta (gradient?).
 deltaFormatPos <- list(
@@ -332,6 +361,9 @@ server <- function(input, output, session) {
                     choices = unique(df$NAME[selectedTeamIdx()]))
     })
     
+    # Stats for team.
+    nTeammates <- reactive(nrow(selectedTeam()))
+    
     # List of dates associated to selected athlete.
     output$dateSelection <- renderUI({
         selectInput("date", "Assessment Date:",
@@ -389,9 +421,9 @@ server <- function(input, output, session) {
     ))
     
     # Tables of T-scores/Percentiles compared with all athletes and teammates.
-    output$adaptiveFunctioningTable <- renderFormattable({formattable(adaptiveFunctioning(), lowConcernFormat)})
-    output$syndromeTable <- renderFormattable({formattable(syndrome(), hiConcernFormat)})
-    output$dsmOrientedTable <- renderFormattable({formattable(dsmOriented(), hiConcernFormat)})
+    output$adaptiveFunctioningTable <- renderFormattable({formattable(adaptiveFunctioning(), getFormatList(nTeammates=nTeammates(), high=FALSE))})
+    output$syndromeTable <- renderFormattable({formattable(syndrome(), getFormatList(nTeammates=nTeammates()))})
+    output$dsmOrientedTable <- renderFormattable({formattable(dsmOriented(), getFormatList(nTeammates=nTeammates()))})
     
     # Tables of assessment deltas
     output$adaptiveFunctioningDeltaTable <- renderFormattable({formattable(adaptiveFunctioningDelta(), deltaFormatPos)})
