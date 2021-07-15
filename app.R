@@ -6,7 +6,8 @@ library(formattable) # For conditional formatting of tables.
 # Data pre-processing.
 ##############################################################################
 # Import the data set from the database. (Currently just a flat R data frame.)
-df <- readRDS("data/example.Rda")
+# df <- readRDS("data/example.Rda")
+df <- readRDS("data/lu_data.Rda")
 # Correct database values. Spouse/Partner score often reported as zero when
 # respondent does not have a spouse/partner. Better to treat these as zeros.
 df$Spouse_Partner_TScore[which(df$Spouse_Partner_TScore < .01)] = NA
@@ -177,12 +178,19 @@ buildRadarChart <- function(tableFrame){
 # Conditional formatting for the main data tables.
 
 getFormatList <- function(nTeammates=1, high=TRUE){
+    # Set number of standard deviations for borderline and clinical values. The
+    # "official" values are 1.5 and 1.85 for an individual. At the aggregate
+    # level that makes almost everything clinical(!) so for visual clarity we
+    # increase these parameters.
+    TEAM_CLINIC <- 3.0
+    TEAM_BORDER <- 2.0
+    
     teamStdDev <- 10/sqrt(nTeammates)
     
-    teamHiBorder <- 50 + 1.5*teamStdDev
-    teamHiClinic <- 50 + 2.0*teamStdDev # "should" be 1.8.
-    teamLoBorder <- 50 - 1.5*teamStdDev
-    teamLoClinic <- 50 - 2.0*teamStdDev # "should" be 1.8.
+    teamHiBorder <- 50 + TEAM_BORDER*teamStdDev
+    teamHiClinic <- 50 + TEAM_CLINIC*teamStdDev 
+    teamLoBorder <- 50 - TEAM_BORDER*teamStdDev
+    teamLoClinic <- 50 - TEAM_CLINIC*teamStdDev
     
     teamHiBorderPerc <- 100*pnorm(teamHiBorder, 50, 10)
     teamHiClinicPerc <- 100*pnorm(teamHiClinic, 50, 10)
