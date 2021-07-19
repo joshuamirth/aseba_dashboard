@@ -6,10 +6,10 @@ library(formattable) # For conditional formatting of tables.
 # Data pre-processing.
 ##############################################################################
 # Import the data set from the database. (Currently just a flat R data frame.)
-# df <- readRDS("data/example.Rda")
-df <- readRDS("data/lu_data.Rda")
+df <- readRDS("data/example.Rda")
+
 # Correct database values. Spouse/Partner score often reported as zero when
-# respondent does not have a spouse/partner. Better to treat these as zeros.
+# respondent does not have a spouse/partner. Better to treat these as NAs.
 df$Spouse_Partner_TScore[which(df$Spouse_Partner_TScore < .01)] = NA
 # Dates missing from some assessments. Replace with unique identifier (even
 # though not meaningful).
@@ -46,7 +46,6 @@ ssCols <- c("Anxious__Depressed_TScore", "Withdrawn_TScore",
             "Attention_Problems_TScore", "Aggressive_Behavior_TScore",
             "Rule_Breaking_Behavior_TScore", "Intrusive_TScore")
 ssT_ScoreAverage <- colMeans(df[,ssCols], na.rm = T)
-
 
 ##############################################################################
 # General functions
