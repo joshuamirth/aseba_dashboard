@@ -282,7 +282,7 @@ deltaFormatNeg <- list(
 ui <- fluidPage(
 
     # Application title
-    titlePanel("Liberty University Athletes"),
+    titlePanel("Athletic Teams"),
 
     # Sidebar with a slider input for number of bins 
     sidebarLayout(
