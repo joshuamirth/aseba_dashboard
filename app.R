@@ -365,7 +365,7 @@ server <- function(input, output, session) {
     # List of athletes associated to selected team.
     output$athleteSelection <- renderUI({
         selectInput("athlete", "Athlete:",
-                    choices = unique(df$NAME[selectedTeamIdx()]))
+                    choices = c("----", unique(df$NAME[selectedTeamIdx()])))
     })
     
     # Stats for team.
